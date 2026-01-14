@@ -8,6 +8,12 @@ export interface MoodEntry {
   note: string;
 }
 
+export interface JournalEntry {
+  id: string;
+  timestamp: number;
+  content: string;
+}
+
 export type GoalCategory = 'Personal' | 'Professional';
 export type GoalStatus = 'Pending' | 'In Progress' | 'Completed';
 

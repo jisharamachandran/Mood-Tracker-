@@ -2,9 +2,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { MoodSection } from './components/MoodSection';
 import { GoalSection } from './components/GoalSection';
+import { JournalSection } from './components/JournalSection';
 import { Card } from './components/Card';
 import { Button } from './components/Button';
-import { MoodEntry, Goal, MoodValue, AIInsight } from './types';
+import { MoodEntry, Goal, MoodValue, AIInsight, JournalEntry } from './types';
 import { getAIInsights } from './services/geminiService';
 
 const App: React.FC = () => {
@@ -18,9 +19,14 @@ const App: React.FC = () => {
     return saved ? JSON.parse(saved) : [];
   });
 
+  const [journal, setJournal] = useState<JournalEntry[]>(() => {
+    const saved = localStorage.getItem('journal');
+    return saved ? JSON.parse(saved) : [];
+  });
+
   const [insights, setInsights] = useState<AIInsight | null>(null);
   const [loadingInsights, setLoadingInsights] = useState(false);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'moods' | 'goals'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'moods' | 'goals' | 'journal'>('dashboard');
 
   useEffect(() => {
     localStorage.setItem('moods', JSON.stringify(moods));
@@ -30,18 +36,21 @@ const App: React.FC = () => {
     localStorage.setItem('goals', JSON.stringify(goals));
   }, [goals]);
 
+  useEffect(() => {
+    localStorage.setItem('journal', JSON.stringify(journal));
+  }, [journal]);
+
   const refreshInsights = useCallback(async () => {
     setLoadingInsights(true);
-    const data = await getAIInsights(moods, goals);
+    const data = await getAIInsights(moods, goals, journal);
     setInsights(data);
     setLoadingInsights(false);
-  }, [moods, goals]);
+  }, [moods, goals, journal]);
 
   useEffect(() => {
-    if (moods.length > 0 || goals.length > 0) {
+    if (moods.length > 0 || goals.length > 0 || journal.length > 0) {
       refreshInsights();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const addMood = (value: MoodValue, note: string) => {
@@ -52,6 +61,19 @@ const App: React.FC = () => {
       note
     };
     setMoods(prev => [newEntry, ...prev]);
+  };
+
+  const addJournalEntry = (content: string) => {
+    const newEntry: JournalEntry = {
+      id: Math.random().toString(36).substr(2, 9),
+      timestamp: Date.now(),
+      content
+    };
+    setJournal(prev => [newEntry, ...prev]);
+  };
+
+  const deleteJournalEntry = (id: string) => {
+    setJournal(prev => prev.filter(j => j.id !== id));
   };
 
   const addGoal = (goalData: Omit<Goal, 'id'>) => {
@@ -71,15 +93,15 @@ const App: React.FC = () => {
   };
 
   const renderDashboard = () => (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-in fade-in duration-700">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card title="Daily Spark ✨" className="bg-gradient-to-br from-indigo-500/20 to-purple-500/20">
           {insights ? (
             <div className="space-y-4">
-              <p className="text-xl font-medium italic">"{insights.dailyQuote}"</p>
+              <p className="text-xl font-medium italic leading-relaxed">"{insights.dailyQuote}"</p>
               <div className="pt-4 border-t border-white/10">
-                <h4 className="text-sm font-bold uppercase text-purple-400 mb-2">Reflections</h4>
-                <p className="text-sm text-white/80">{insights.moodAnalysis}</p>
+                <h4 className="text-[10px] font-bold uppercase tracking-widest text-purple-400 mb-2">Deep Reflection</h4>
+                <p className="text-sm text-white/70 leading-relaxed">{insights.moodAnalysis}</p>
               </div>
             </div>
           ) : (
@@ -95,24 +117,24 @@ const App: React.FC = () => {
             onClick={refreshInsights} 
             loading={loadingInsights}
           >
-            Refresh AI Insights
+            Regenerate Insights
           </Button>
         </Card>
 
-        <Card title="Quick Stats">
+        <Card title="Pulse Check">
           <div className="grid grid-cols-2 gap-4">
             <div className="p-4 bg-white/5 rounded-2xl">
-              <p className="text-white/40 text-xs uppercase font-bold">Goals Completed</p>
+              <p className="text-white/40 text-[10px] uppercase font-bold tracking-wider">Completed</p>
               <p className="text-3xl font-bold">{goals.filter(g => g.status === 'Completed').length}</p>
             </div>
             <div className="p-4 bg-white/5 rounded-2xl">
-              <p className="text-white/40 text-xs uppercase font-bold">In Progress</p>
-              <p className="text-3xl font-bold">{goals.filter(g => g.status === 'In Progress').length}</p>
+              <p className="text-white/40 text-[10px] uppercase font-bold tracking-wider">Total Active</p>
+              <p className="text-3xl font-bold">{goals.filter(g => g.status !== 'Completed').length}</p>
             </div>
             <div className="p-4 bg-white/5 rounded-2xl col-span-2">
-              <p className="text-white/40 text-xs uppercase font-bold mb-2">AI Goal Coaching</p>
+              <p className="text-white/40 text-[10px] uppercase font-bold tracking-wider mb-2">AI Coaching</p>
               <p className="text-sm italic text-white/70">
-                {insights?.goalAdvice || "Enter your goals to get tailored coaching."}
+                {insights?.goalAdvice || "Keep tracking to unlock personalized advice."}
               </p>
             </div>
           </div>
@@ -121,12 +143,10 @@ const App: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1">
-          <Card title="Latest Mood" className="h-full">
+          <Card title="Current Vibe" className="h-full">
             {moods.length > 0 ? (
               <div className="flex flex-col items-center justify-center py-6">
                 <span className="text-7xl mb-4 float">
-                  {Object.entries(moods[0].value ? moods[0].value : 'Neutral').map(([k, v]) => moods[0].value === k ? '' : '')}
-                  {/* Just hardcode current since lookup is easy */}
                   {moods[0].value === 'Ecstatic' && '🤩'}
                   {moods[0].value === 'Happy' && '😊'}
                   {moods[0].value === 'Neutral' && '😐'}
@@ -136,36 +156,28 @@ const App: React.FC = () => {
                   {moods[0].value === 'Tired' && '😴'}
                 </span>
                 <p className="text-xl font-bold">{moods[0].value}</p>
-                <p className="text-white/40 text-xs">Logged {new Date(moods[0].timestamp).toLocaleTimeString()}</p>
+                <p className="text-white/30 text-[10px] uppercase font-bold mt-1 tracking-tighter">
+                  Last Logged {new Date(moods[0].timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </p>
               </div>
             ) : (
-              <p className="text-white/30 text-center italic">No logs yet today.</p>
+              <p className="text-white/20 text-center italic py-8">No mood logged yet.</p>
             )}
-            <Button className="w-full mt-4" variant="secondary" onClick={() => setActiveTab('moods')}>Track Mood</Button>
+            <Button className="w-full mt-4" variant="secondary" onClick={() => setActiveTab('moods')}>Update Mood</Button>
           </Card>
         </div>
         <div className="lg:col-span-2">
-          <Card title="Top Priority" className="h-full">
-            {goals.filter(g => g.status !== 'Completed').slice(0, 1).map(g => (
-              <div key={g.id} className="space-y-4">
-                <h4 className="text-2xl font-bold">{g.title}</h4>
-                <div className="flex justify-between text-xs mb-1">
-                  <span className="text-white/60">Overall Progress</span>
-                  <span className="font-bold">{g.progress}%</span>
-                </div>
-                <div className="h-3 bg-white/10 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-gradient-to-r from-cyan-400 to-blue-500 transition-all duration-500" 
-                    style={{ width: `${g.progress}%` }}
-                  />
-                </div>
-                <Button variant="ghost" onClick={() => setActiveTab('goals')}>Manage All Goals</Button>
+          <Card title="Recent Thought" className="h-full">
+            {journal.length > 0 ? (
+              <div className="space-y-4">
+                <p className="text-lg text-white/80 line-clamp-3 italic">"{journal[0].content}"</p>
+                <p className="text-white/30 text-[10px] font-bold uppercase">Captured {new Date(journal[0].timestamp).toLocaleDateString()}</p>
+                <Button variant="ghost" onClick={() => setActiveTab('journal')}>Read Full Stream</Button>
               </div>
-            ))}
-            {goals.filter(g => g.status !== 'Completed').length === 0 && (
-              <div className="flex flex-col items-center justify-center h-full py-8 text-white/30 italic">
-                All caught up! Time for a new challenge?
-                <Button className="mt-4" onClick={() => setActiveTab('goals')}>Set New Goal</Button>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full py-8 text-white/20 italic">
+                Any quick thoughts or brain dumps?
+                <Button className="mt-4" onClick={() => setActiveTab('journal')}>Start Journaling</Button>
               </div>
             )}
           </Card>
@@ -176,21 +188,23 @@ const App: React.FC = () => {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 pb-32">
-      <header className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-4">
+      <header className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <h1 className="text-4xl md:text-5xl font-bold font-heading bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">
+          <h1 className="text-4xl md:text-5xl font-bold font-heading bg-gradient-to-r from-white via-white to-white/40 bg-clip-text text-transparent">
             Growth Suite
           </h1>
-          <p className="text-white/60 mt-2">Elevate your mind. Master your mission.</p>
+          <p className="text-white/50 mt-2 font-medium">A space for your mind and your mission.</p>
         </div>
         
-        <nav className="flex gap-2 bg-white/5 p-1.5 rounded-2xl border border-white/10 self-start md:self-end">
-          {(['dashboard', 'moods', 'goals'] as const).map(tab => (
+        <nav className="flex flex-wrap gap-2 bg-white/5 p-1.5 rounded-2xl border border-white/10 shadow-xl">
+          {(['dashboard', 'journal', 'moods', 'goals'] as const).map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-6 py-2 rounded-xl text-sm font-bold capitalize transition-all ${
-                activeTab === tab ? 'bg-white text-black shadow-lg shadow-white/10' : 'text-white/60 hover:text-white hover:bg-white/5'
+              className={`px-5 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${
+                activeTab === tab 
+                ? 'bg-white text-black shadow-lg' 
+                : 'text-white/50 hover:text-white hover:bg-white/5'
               }`}
             >
               {tab}
@@ -206,6 +220,15 @@ const App: React.FC = () => {
             <MoodSection entries={moods} onAddEntry={addMood} />
           </div>
         )}
+        {activeTab === 'journal' && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <JournalSection 
+              entries={journal} 
+              onAddEntry={addJournalEntry} 
+              onDeleteEntry={deleteJournalEntry} 
+            />
+          </div>
+        )}
         {activeTab === 'goals' && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <GoalSection 
@@ -218,15 +241,15 @@ const App: React.FC = () => {
         )}
       </main>
 
-      <footer className="fixed bottom-0 left-0 right-0 p-6 pointer-events-none">
-        <div className="max-w-6xl mx-auto flex justify-center">
-          <div className="glass px-8 py-4 rounded-full pointer-events-auto border border-white/20 shadow-2xl flex items-center gap-6">
+      <footer className="fixed bottom-8 left-0 right-0 p-4 pointer-events-none z-50">
+        <div className="max-w-lg mx-auto flex justify-center">
+          <div className="glass px-8 py-3 rounded-full pointer-events-auto border border-white/20 shadow-2xl flex items-center gap-6">
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-              <span className="text-xs font-bold text-white/60">AI Sync Active</span>
+              <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+              <span className="text-[10px] font-bold uppercase tracking-widest text-white/50">Gemini Active</span>
             </div>
-            <div className="w-[1px] h-4 bg-white/10" />
-            <span className="text-xs text-white/40 italic">Stay focused, stay present.</span>
+            <div className="w-[1px] h-3 bg-white/10" />
+            <span className="text-[10px] text-white/40 font-medium italic">Mindset is everything.</span>
           </div>
         </div>
       </footer>

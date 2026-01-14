@@ -1,22 +1,24 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { MoodEntry, Goal, AIInsight } from "../types";
+import { MoodEntry, Goal, AIInsight, JournalEntry } from "../types";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 
-export async function getAIInsights(moods: MoodEntry[], goals: Goal[]): Promise<AIInsight> {
-  const moodContext = moods.slice(-7).map(m => `${new Date(m.timestamp).toLocaleDateString()}: ${m.value}`).join(", ");
+export async function getAIInsights(moods: MoodEntry[], goals: Goal[], journal: JournalEntry[]): Promise<AIInsight> {
+  const moodContext = moods.slice(-5).map(m => `${new Date(m.timestamp).toLocaleDateString()}: ${m.value} (${m.note})`).join(", ");
   const goalContext = goals.map(g => `${g.title} (${g.category} - ${g.status} ${g.progress}%)`).join(", ");
+  const journalContext = journal.slice(-3).map(j => j.content).join(" | ");
 
   const prompt = `
-    Analyze the following mood entries and goals to provide personalized insights.
-    Mood History (last 7): ${moodContext}
+    Analyze the following data to provide personalized life coaching insights.
+    Mood History: ${moodContext}
     Current Goals: ${goalContext}
+    Recent Thoughts/Journaling: ${journalContext}
     
     Provide a JSON response with:
-    1. moodAnalysis: A short, empathetic analysis of the user's emotional trend.
-    2. goalAdvice: Actionable advice for the most critical or lagging goals.
-    3. dailyQuote: An inspiring, non-cliché quote tailored to their current state.
+    1. moodAnalysis: A short, empathetic analysis of the user's emotional trend and how it relates to their thoughts.
+    2. goalAdvice: Actionable advice for their goals based on their current mood/mindset.
+    3. dailyQuote: An inspiring quote tailored specifically to their situation.
   `;
 
   try {
@@ -41,9 +43,9 @@ export async function getAIInsights(moods: MoodEntry[], goals: Goal[]): Promise<
   } catch (error) {
     console.error("AI Insights Error:", error);
     return {
-      moodAnalysis: "Your mood seems to be fluctuating. Remember to take small breaks!",
-      goalAdvice: "Try breaking down your largest goal into 15-minute tasks.",
-      dailyQuote: "The only way to do great work is to love what you do. - Steve Jobs"
+      moodAnalysis: "You've been reflecting a lot lately. Keep using this space to clear your head.",
+      goalAdvice: "Break your top priority into three tiny steps you can do in 5 minutes.",
+      dailyQuote: "The journey of a thousand miles begins with one step. - Lao Tzu"
     };
   }
 }

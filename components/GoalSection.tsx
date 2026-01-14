@@ -40,10 +40,18 @@ export const GoalSection: React.FC<GoalSectionProps> = ({ goals, onAddGoal, onUp
     }
   };
 
+  const toggleComplete = (goal: Goal) => {
+    const isCompleted = goal.status === 'Completed';
+    onUpdateGoal(goal.id, {
+      status: isCompleted ? 'In Progress' : 'Completed',
+      progress: isCompleted ? 50 : 100
+    });
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold font-heading">Active Goals</h2>
+        <h2 className="text-2xl font-bold font-heading">My Ambitions</h2>
         <Button onClick={() => setIsAdding(!isAdding)} variant={isAdding ? 'secondary' : 'primary'}>
           {isAdding ? 'Cancel' : 'Add New Goal'}
         </Button>
@@ -90,63 +98,74 @@ export const GoalSection: React.FC<GoalSectionProps> = ({ goals, onAddGoal, onUp
 
       <div className="grid grid-cols-1 gap-4">
         {goals.map(goal => (
-          <Card key={goal.id} className="group transition-all hover:translate-x-1">
-            <div className="flex items-start justify-between">
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${CATEGORY_COLORS[goal.category]}`}>
-                    {goal.category}
-                  </span>
-                  <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-white/10 text-white/70`}>
-                    {goal.status}
-                  </span>
-                </div>
-                <h3 className="text-lg font-semibold mb-1">{goal.title}</h3>
-              </div>
-              <Button onClick={() => onDeleteGoal(goal.id)} variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100">
-                <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </Button>
-            </div>
-
-            <div className="mt-4">
-              <div className="flex justify-between text-xs mb-1">
-                <span className="text-white/40">Progress</span>
-                <span className="text-white/80 font-bold">{goal.progress}%</span>
-              </div>
-              <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-500" 
-                  style={{ width: `${goal.progress}%` }}
-                />
-              </div>
-            </div>
-
-            <div className="mt-4 flex gap-2">
-              <input 
-                type="range" 
-                min="0" 
-                max="100" 
-                value={goal.progress}
-                onChange={(e) => onUpdateGoal(goal.id, { progress: Number(e.target.value), status: Number(e.target.value) === 100 ? 'Completed' : 'In Progress' })}
-                className="flex-1 h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-purple-500"
-              />
-              <select
-                value={goal.status}
-                onChange={(e) => onUpdateGoal(goal.id, { status: e.target.value as GoalStatus })}
-                className="bg-white/5 border border-white/10 rounded-lg text-xs p-1 focus:outline-none"
+          <Card key={goal.id} className={`group transition-all ${goal.status === 'Completed' ? 'opacity-60' : 'hover:translate-x-1'}`}>
+            <div className="flex items-start gap-4">
+              <button 
+                onClick={() => toggleComplete(goal)}
+                className={`mt-1 flex-shrink-0 w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all ${
+                  goal.status === 'Completed' 
+                  ? 'bg-green-500 border-green-400 scale-110' 
+                  : 'bg-white/5 border-white/20 hover:border-purple-400'
+                }`}
               >
-                <option value="Pending">Pending</option>
-                <option value="In Progress">In Progress</option>
-                <option value="Completed">Completed</option>
-              </select>
+                {goal.status === 'Completed' && (
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+              </button>
+              
+              <div className="flex-1">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${CATEGORY_COLORS[goal.category]}`}>
+                        {goal.category}
+                      </span>
+                    </div>
+                    <h3 className={`text-lg font-semibold transition-all ${goal.status === 'Completed' ? 'line-through text-white/40' : 'text-white'}`}>
+                      {goal.title}
+                    </h3>
+                  </div>
+                  <Button onClick={() => onDeleteGoal(goal.id)} variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100">
+                    <svg className="w-4 h-4 text-red-400/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </Button>
+                </div>
+
+                <div className="mt-4">
+                  <div className="flex justify-between text-[10px] mb-1">
+                    <span className="text-white/30 uppercase font-bold tracking-wider">Progress</span>
+                    <span className="text-white/60 font-bold">{goal.progress}%</span>
+                  </div>
+                  <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+                    <div 
+                      className={`h-full transition-all duration-700 ${goal.status === 'Completed' ? 'bg-green-500' : 'bg-gradient-to-r from-purple-500 to-indigo-500'}`} 
+                      style={{ width: `${goal.progress}%` }}
+                    />
+                  </div>
+                </div>
+
+                {goal.status !== 'Completed' && (
+                  <div className="mt-3">
+                    <input 
+                      type="range" 
+                      min="0" 
+                      max="100" 
+                      value={goal.progress}
+                      onChange={(e) => onUpdateGoal(goal.id, { progress: Number(e.target.value) })}
+                      className="w-full h-1 bg-white/5 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                    />
+                  </div>
+                )}
+              </div>
             </div>
           </Card>
         ))}
         {goals.length === 0 && !isAdding && (
           <div className="text-center py-12 text-white/20 italic">
-            No goals yet. Dream big and start tracking!
+            No goals yet. Start tracking your ambitions!
           </div>
         )}
       </div>
